@@ -9,20 +9,30 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
 
-  // Set up axios defaults and interceptor once on mount
+  // Base API URL from environment variable (set in .env or deployment platform)
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Set up axios defaults and interceptor
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['x-auth-token'] = token;
+    } else {
+      delete axios.defaults.headers.common['x-auth-token'];
     }
 
-    // Add response interceptor for handling token expiration
+    // Add response interceptor for handling token expiration (skip auth routes)
     const interceptor = axios.interceptors.response.use(
       response => response,
       error => {
-        if (error.response?.status === 401) {
-          logout(); // Clear auth state on 401
+        if (
+          error.response?.status === 401 &&
+          !error.config.url.includes('/api/auth/signin') &&
+          !error.config.url.includes('/api/auth/signup')
+        ) {
+          console.log('401 detected (non-auth route), logging out');
+          logout();
           alert('Your session has expired. Please log in again.');
-          window.location.href = '/login';
+          window.location.href = '/signin'; // Match your route
         }
         return Promise.reject(error);
       }
@@ -32,30 +42,31 @@ export const AuthProvider = ({ children }) => {
     return () => axios.interceptors.response.eject(interceptor);
   }, [token]);
 
-  // Load user data on mount if token exists
+  // Load user data on mount or token change
   useEffect(() => {
     if (token) {
-      // Fetch user data using token (e.g., after login or on page load)
       const fetchUser = async () => {
         try {
-          const res = await axios.get('http://localhost:5000/api/user', {
+          const res = await axios.get(`${API_URL}/api/user`, {
             headers: { 'x-auth-token': token },
           });
           setUser(res.data);
+          setIsAuthenticated(true);
         } catch (err) {
-          console.error('Fetch user error:', err);
-          setToken(null);
-          localStorage.removeItem('token');
+          console.error('Fetch user error:', err.response?.data || err.message);
+          if (err.response?.status === 401) {
+            logout();
+          }
         }
       };
       fetchUser();
     }
-  }, [token]);
-  
+  }, [token, API_URL]); // Add API_URL as dependency
+
   const signup = async ({ username, email, password }) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/signup', {
-        username, // Changed from 'name' to match backend User model
+      const response = await axios.post(`${API_URL}/api/auth/signup`, {
+        username,
         email,
         password,
       });
@@ -65,7 +76,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setIsAuthenticated(true);
       axios.defaults.headers.common['x-auth-token'] = token;
-      return user; // For onLogin callback
+      return user;
     } catch (error) {
       console.error('Signup error:', error.response?.data || error.message);
       throw new Error(error.response?.data?.message || 'Signup failed');
@@ -74,7 +85,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/signin', {
+      const response = await axios.post(`${API_URL}/api/auth/signin`, {
         email,
         password,
       });
@@ -84,7 +95,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setIsAuthenticated(true);
       axios.defaults.headers.common['x-auth-token'] = token;
-      return user; // For onLogin callback
+      return user;
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message);
       throw new Error(error.response?.data?.message || 'Login failed');
@@ -105,3 +116,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthProvider;
