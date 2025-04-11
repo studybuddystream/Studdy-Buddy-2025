@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext'; // Correct import path
 
 const Navbar = () => {
-  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const dropdownRef = useRef(null); // Ref for the dropdown menu
@@ -17,21 +16,13 @@ const Navbar = () => {
     setIsDropdownOpen(false); // Close dropdown
   };
 
+
   // Handle logout click
   const handleLogoutClick = () => {
     logout(); // Call logout handler
     navigate('/'); // Redirect to home page
     setIsDropdownOpen(false); // Close dropdown
   };
-
-  // Handle navigation to protected routes (e.g., Study Rooms, Achievements)
-  // const handleProtectedNavigation = (path) => {
-  //   if (isAuthenticated) {
-  //     navigate(path); // Navigate to the protected route
-  //   } else {
-  //     navigate('/signin'); // Redirect to Sign-In page
-  //   }
-  // };
 
   // Close dropdown when clicking outside
   useEffect(() => {

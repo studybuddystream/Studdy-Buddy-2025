@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Achievements from './components/Achievements';
@@ -33,8 +33,13 @@ const StudyBuddy = () => {
     bestBuddy: false,
   });
   const [authenticatedUser, setAuthenticatedUser] = useState(null);
+  const [studyHours, setStudyHours] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [lastVisitDate, setLastVisitDate] = useState(null);
+  const [studySessionStart, setStudySessionStart] = useState(null);
+  const studySessionRef = useRef(null);
 
-  const { user, isAuthenticated, logout } = useContext(AuthContext); // Removed 'login'
+  const { user, isAuthenticated, logout, token } = useContext(AuthContext);
 
   const locationSuggestions = [
     { name: 'India', timezone: 'Asia/Kolkata' },
@@ -45,7 +50,79 @@ const StudyBuddy = () => {
     { name: 'Berlin, Germany', timezone: 'Europe/Berlin' },
   ];
 
-  // Handle login/signup to update authenticatedUser
+  const updateUserData = (updates) => {
+    if (!user) return;
+    const userData = JSON.parse(localStorage.getItem(`user_${user.id}`)) || {
+      studyHours: 0,
+      streak: 0,
+      lastVisitDate: null,
+    };
+    const updatedData = { ...userData, ...updates };
+    localStorage.setItem(`user_${user.id}`, JSON.stringify(updatedData));
+    return updatedData;
+  };
+
+  useEffect(() => {
+    const loadUserData = () => {
+      if (isAuthenticated && user) {
+        const userData = JSON.parse(localStorage.getItem(`user_${user.id}`)) || {
+          studyHours: 0,
+          streak: 0,
+          lastVisitDate: null,
+        };
+
+        setStudyHours(userData.studyHours);
+        setStreak(userData.streak);
+        setLastVisitDate(userData.lastVisitDate ? new Date(userData.lastVisitDate) : null);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let newStreak = userData.streak;
+        if (userData.lastVisitDate) {
+          const lastVisit = new Date(userData.lastVisitDate);
+          lastVisit.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((today - lastVisit) / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            newStreak = userData.streak + 1;
+          } else if (diffDays > 1) {
+            newStreak = 1;
+          }
+        } else {
+          newStreak = 1;
+        }
+
+        updateUserData({
+          streak: newStreak,
+          lastVisitDate: today.toISOString(),
+        });
+
+        if (newStreak !== userData.streak) setStreak(newStreak);
+        setLastVisitDate(today);
+        setStudySessionStart(new Date());
+      }
+    };
+
+    loadUserData();
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    studySessionRef.current = studySessionStart;
+    return () => {
+      if (studySessionRef.current) {
+        const sessionEnd = new Date();
+        const hoursStudied = (sessionEnd - studySessionRef.current) / (1000 * 60 * 60);
+        const newStudyHours = studyHours + hoursStudied;
+
+        updateUserData({
+          studyHours: newStudyHours,
+          lastVisitDate: new Date().toISOString(),
+        });
+      }
+    };
+  }, [studySessionStart, user]);
+
   const handleLogin = (userData) => {
     setAuthenticatedUser({
       id: userData.id,
@@ -57,7 +134,6 @@ const StudyBuddy = () => {
     });
   };
 
-  // Sync authenticatedUser with AuthContext user
   useEffect(() => {
     const syncUser = () => {
       if (isAuthenticated && user) {
@@ -193,23 +269,29 @@ const StudyBuddy = () => {
               <Route
                 path="/profile"
                 element={
-                  <ProfilePage 
-                    studyHours={10} 
-                    streak={5} 
-                    connectedFriends={[]} 
+                  <ProfilePage
+                    studyHours={studyHours}
+                    streak={streak}
+                    connectedFriends={[]}
                     authenticatedUser={authenticatedUser}
                   />
                 }
               />
-              <Route 
-                path="/circle" 
-                element={<Circle authenticatedUser={authenticatedUser} />} 
+              <Route
+                path="/circle"
+                element={<Circle authenticatedUser={authenticatedUser} />}
               />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/study-circle" element={<StudyCirclePage />} />
-              <Route path="/streak" element={<StreakPage />} />
-              <Route path="/study-hour" element={<StudyHourPage />} />
-              <Route path="/discussion-room" element={<DiscussionRoom />} />
+              <Route 
+                path="/streak" 
+                element={<StreakPage streak={streak} lastVisitDate={lastVisitDate} />} 
+              />
+              <Route 
+                path="/study-hour" 
+                element={<StudyHourPage studyHours={studyHours} />} 
+              />
+              <Route path="/discussion-room/:roomId" element={<DiscussionRoom />} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
@@ -224,7 +306,6 @@ const ProtectedRoute = () => {
   return isAuthenticated ? <Outlet /> : <Navigate to="/signin" />;
 };
 
-// Wrap StudyBuddy with AuthProvider
 const App = () => (
   <AuthProvider>
     <StudyBuddy />

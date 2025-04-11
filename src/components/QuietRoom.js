@@ -7,6 +7,7 @@ const VideoCard = ({ stream, name, email, status, onStatusChange, isOwner, liveD
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [tempStatus, setTempStatus] = useState(status || 'Set your status...');
   const [showReactions, setShowReactions] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -14,7 +15,17 @@ const VideoCard = ({ stream, name, email, status, onStatusChange, isOwner, liveD
     }
   }, [stream]);
 
-  const handlePinToggle = () => onPin();
+  const handlePinToggle = () => {
+    onPin();
+    // Add a small bounce effect when pinning
+    if (!isPinned) {
+      const card = document.getElementById(`video-card-${userId}`);
+      if (card) {
+        card.classList.add('animate-bounce');
+        setTimeout(() => card.classList.remove('animate-bounce'), 1000);
+      }
+    }
+  };
 
   const handleStatusClick = () => {
     if (isOwner) {
@@ -36,10 +47,23 @@ const VideoCard = ({ stream, name, email, status, onStatusChange, isOwner, liveD
   const handleReaction = (reactionType) => {
     onReact(reactionType);
     setShowReactions(false);
+    
+    // Add reaction animation
+    const reactionElement = document.getElementById(`reaction-${userId}-${reactionType}`);
+    if (reactionElement) {
+      reactionElement.classList.add('animate-ping');
+      setTimeout(() => reactionElement.classList.remove('animate-ping'), 1000);
+    }
   };
 
   const handleFriendRequest = () => {
     onSendFriendRequest(userId, name);
+    // Add friend request animation
+    const button = document.getElementById(`friend-request-${userId}`);
+    if (button) {
+      button.classList.add('animate-pulse');
+      setTimeout(() => button.classList.remove('animate-pulse'), 1000);
+    }
   };
 
   const formatDuration = (seconds) => {
@@ -50,53 +74,104 @@ const VideoCard = ({ stream, name, email, status, onStatusChange, isOwner, liveD
   };
 
   return (
-    <div className={`p-1 rounded-lg bg-gray-800 bg-opacity-75 backdrop-blur-lg border ${isPinned ? 'border-yellow-500' : 'border-gray-700/10'} hover:border-purple-500/30 transition-all duration-300 shadow-lg hover:shadow-2xl flex flex-col`}>
-      <div className="relative">
+    <div 
+      id={`video-card-${userId}`}
+      className={`relative p-1 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur-lg border-2 ${isPinned ? 'border-yellow-400 shadow-yellow-400/20' : 'border-transparent'} transition-all duration-300 shadow-lg hover:shadow-xl flex flex-col transform hover:scale-105 hover:z-10`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        boxShadow: isHovered ? '0 10px 25px -5px rgba(0, 0, 0, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        transition: 'all 0.3s ease'
+      }}
+    >
+      {/* Glow effect for pinned cards */}
+      {isPinned && (
+        <div className="absolute inset-0 rounded-xl bg-yellow-400 opacity-10 pointer-events-none"></div>
+      )}
+      
+      <div className="relative overflow-hidden rounded-lg">
         <video
           ref={videoRef}
           autoPlay
           muted
-          className="w-full h-40 object-cover rounded-lg"
+          className={`w-full h-48 object-cover rounded-lg transition-transform duration-500 ${isHovered ? 'scale-110' : 'scale-100'}`}
         />
+        
+        {/* Screen sharing indicator */}
+        {isScreenSharing && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full flex items-center animate-pulse">
+            <i className="fas fa-desktop mr-1"></i>
+            <span>Sharing</span>
+          </div>
+        )}
+        
+        {/* Top right controls */}
         <div className="absolute top-2 right-2 flex space-x-2">
-          <span className="bg-gray-600 text-white text-xs rounded-full px-2 py-1">🔥 {streakDays}</span>
+          <span className="bg-gradient-to-r from-yellow-500 to-red-500 text-white text-xs rounded-full px-2 py-1 shadow-md flex items-center">
+            <i className="fas fa-fire mr-1"></i>
+            <span>{streakDays}</span>
+          </span>
           {!isOwner && (
             <button
+              id={`friend-request-${userId}`}
               onClick={handleFriendRequest}
-              className="bg-gray-600 text-white text-xs rounded-full px-2 py-1 hover:bg-gray-500"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs rounded-full px-2 py-1 shadow-md hover:from-blue-600 hover:to-purple-700 transition-all duration-300 flex items-center"
             >
               <i className="fas fa-user-plus"></i>
             </button>
           )}
           <button
             onClick={handlePinToggle}
-            className="bg-gray-600 text-white text-xs rounded-full px-2 py-1 hover:bg-gray-500"
+            className={`${isPinned ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-gray-300'} text-xs rounded-full px-2 py-1 shadow-md hover:bg-yellow-600 transition-all duration-300 flex items-center`}
           >
-            <i className="fas fa-thumbtack"></i> {isPinned ? 'Unpin' : 'Pin'}
+            <i className="fas fa-thumbtack"></i>
           </button>
         </div>
-        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-sm text-white">
-          {name}
+        
+        {/* Name tag */}
+        <div className="absolute bottom-2 left-2 bg-gradient-to-r from-black/70 to-transparent px-3 py-1 rounded-r-full text-sm text-white flex items-center">
+          <span className="truncate max-w-[100px]">{name}</span>
         </div>
+        
+        {/* Reaction button */}
         <div className="absolute bottom-2 right-2">
           <button
             onClick={() => setShowReactions(!showReactions)}
-            className="bg-blue-500 px-2 py-1 rounded text-white text-sm"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-1 rounded-full text-white text-sm shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center"
           >
             <i className="fas fa-smile"></i>
           </button>
           {showReactions && (
-            <div className="absolute right-0 bottom-8 flex space-x-2 bg-gray-700 p-2 rounded">
-              <button onClick={() => handleReaction('like')} className="text-2xl">👍</button>
-              <button onClick={() => handleReaction('heart')} className="text-2xl">❤️</button>
-              <button onClick={() => handleReaction('smile')} className="text-2xl">😊</button>
+            <div className="absolute right-0 bottom-10 flex space-x-2 bg-gray-800/90 p-2 rounded-full backdrop-blur-sm shadow-lg animate-fade-in">
+              <button 
+                id={`reaction-${userId}-like`}
+                onClick={() => handleReaction('like')} 
+                className="text-2xl hover:scale-125 transition-transform duration-200"
+              >
+                👍
+              </button>
+              <button 
+                id={`reaction-${userId}-heart`}
+                onClick={() => handleReaction('heart')} 
+                className="text-2xl hover:scale-125 transition-transform duration-200"
+              >
+                ❤️
+              </button>
+              <button 
+                id={`reaction-${userId}-smile`}
+                onClick={() => handleReaction('smile')} 
+                className="text-2xl hover:scale-125 transition-transform duration-200"
+              >
+                😊
+              </button>
             </div>
           )}
         </div>
       </div>
 
+      {/* Status area */}
       <div className="mt-2 flex justify-between items-start px-2">
-        <div>
+        <div className="flex-1 min-w-0">
           {isEditingStatus ? (
             <input
               type="text"
@@ -104,30 +179,53 @@ const VideoCard = ({ stream, name, email, status, onStatusChange, isOwner, liveD
               onChange={handleStatusChange}
               onKeyDown={handleStatusSubmit}
               onBlur={handleStatusSubmit}
-              className="text-sm text-gray-400 bg-gray-700 rounded px-2 py-1 focus:outline-none"
+              className="w-full text-sm text-gray-200 bg-gray-700/50 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-800 transition-all duration-200"
               autoFocus
             />
           ) : (
             <div
-              className="text-sm text-gray-400 cursor-pointer"
+              className="text-sm text-gray-300 cursor-pointer truncate hover:text-white transition-colors duration-200"
               onClick={handleStatusClick}
             >
               {status || 'Set your status...'}
             </div>
           )}
         </div>
-        <div className="flex flex-col items-end">
-          <div className="text-sm text-gray-400">Live: {formatDuration(liveDuration)}</div>
+        <div className="flex flex-col items-end ml-2">
+          <div className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded-full flex items-center">
+            <span className="w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse"></span>
+            <span>Live: {formatDuration(liveDuration)}</span>
+          </div>
         </div>
       </div>
 
-      <div className="flex space-x-2 mt-2 px-2">
-        {reactions?.like > 0 && <span className="text-blue-400 text-sm">👍 {reactions.like}</span>}
-        {reactions?.heart > 0 && <span className="text-blue-400 text-sm">❤️ {reactions.heart}</span>}
-        {reactions?.smile > 0 && <span className="text-blue-400 text-sm">😊 {reactions.smile}</span>}
+      {/* Reactions display */}
+      <div className="flex space-x-2 mt-2 px-2 pb-1">
+        {reactions?.like > 0 && (
+          <span 
+            id={`reaction-display-${userId}-like`}
+            className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full flex items-center hover:bg-blue-500/30 transition-colors duration-200"
+          >
+            👍 {reactions.like}
+          </span>
+        )}
+        {reactions?.heart > 0 && (
+          <span 
+            id={`reaction-display-${userId}-heart`}
+            className="text-xs bg-pink-500/20 text-pink-300 px-2 py-1 rounded-full flex items-center hover:bg-pink-500/30 transition-colors duration-200"
+          >
+            ❤️ {reactions.heart}
+          </span>
+        )}
+        {reactions?.smile > 0 && (
+          <span 
+            id={`reaction-display-${userId}-smile`}
+            className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full flex items-center hover:bg-yellow-500/30 transition-colors duration-200"
+          >
+            😊 {reactions.smile}
+          </span>
+        )}
       </div>
-
-      {isScreenSharing && <div className="mt-2 text-sm text-gray-400 px-2">Screen Sharing Active</div>}
     </div>
   );
 };
@@ -149,7 +247,7 @@ const QuietRoom = () => {
   const [cycles, setCycles] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [users, setUsers] = useState([]);
-  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(true); // Start as true since camera is on by default
   const [isMicOn, setIsMicOn] = useState(false);
   const [liveDurations, setLiveDurations] = useState({});
   const navigate = useNavigate();
@@ -219,38 +317,56 @@ const QuietRoom = () => {
 
   const handleCameraToggle = async () => {
     if (isCameraOn) {
-      stopStreamTracks(streamRef.current);
-      streamRef.current = null;
-
-      setUsers((prevUsers) =>
-        prevUsers.map((u) =>
-          u.id === registeredUser.id ? { ...u, stream: null } : u
-        )
-      );
-      setIsCameraOn(false);
-      setIsMicOn(false);
-    } else {
-      try {
-        const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        streamRef.current = newStream;
-
-        const audioTrack = newStream.getAudioTracks()[0];
-        if (audioTrack) {
-          audioTrack.enabled = false;
+      // Turn off camera
+      if (streamRef.current) {
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.enabled = false; // Disable video track instead of stopping it
         }
-
         setUsers((prevUsers) =>
           prevUsers.map((u) =>
-            u.id === registeredUser.id
-              ? { ...u, stream: newStream, originalStream: newStream }
-              : u
+            u.id === registeredUser.id ? { ...u, stream: streamRef.current } : u
           )
         );
-        setIsCameraOn(true);
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        alert('Failed to access the camera. Please check permissions.');
-        setIsCameraOn(false);
+      }
+      setIsCameraOn(false);
+    } else {
+      // Turn on camera
+      if (streamRef.current) {
+        const videoTrack = streamRef.current.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.enabled = true; // Re-enable existing video track
+          setUsers((prevUsers) =>
+            prevUsers.map((u) =>
+              u.id === registeredUser.id ? { ...u, stream: streamRef.current } : u
+            )
+          );
+          setIsCameraOn(true);
+        }
+      } else {
+        // If no stream exists, request a new one
+        try {
+          const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          streamRef.current = newStream;
+
+          const audioTrack = newStream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack.enabled = isMicOn; // Respect mic state
+          }
+
+          setUsers((prevUsers) =>
+            prevUsers.map((u) =>
+              u.id === registeredUser.id
+                ? { ...u, stream: newStream, originalStream: newStream }
+                : u
+            )
+          );
+          setIsCameraOn(true);
+        } catch (error) {
+          console.error('Error accessing camera:', error);
+          alert('Failed to access the camera. Please check permissions.');
+          setIsCameraOn(false);
+        }
       }
     }
   };
@@ -516,8 +632,10 @@ const QuietRoom = () => {
           if (prevUsers.some((u) => u.id === user.id)) return prevUsers;
           return [...prevUsers, user];
         });
+        setIsCameraOn(true); // Ensure state reflects camera is on
       } catch (error) {
         hasJoined.current = false;
+        setIsCameraOn(false); // Set to false if camera access fails
         if (error.name === 'NotAllowedError') {
           alert('Camera and microphone access denied. Please grant permissions to join.');
         } else if (error.name === 'NotFoundError') {

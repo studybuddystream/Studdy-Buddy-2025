@@ -28,7 +28,7 @@ const StudyRooms = () => {
             icon: 'comments',
             name: 'Discussion Room 🌴',
             description: 'Great for group discussions.',
-            link: '/discussion-room',
+            link: '/discussion-room/1', // Added Room ID to match dynamic routing in DiscussionRoom.js
           },
           {
             icon: 'music',
@@ -80,6 +80,13 @@ const StudyRooms = () => {
           >
             <i className={`fas fa-${room.icon} text-4xl text-green-800 mb-4`}></i>
             <p className="text-lg font-bold text-green-800">{room.name}</p>
+
+            {/* Show 'Upcoming' tag for Lofi Room */}
+            {room.name === 'Lofi Room 🌵' && (
+    <span className="bg-yellow-400 text-black text-xs font-bold py-1 px-2 rounded-full inline-block mb-2">
+      Upcoming
+    </span>
+  )}
             <p className="text-md text-gray-600">{room.description}</p>
             <Link
               to={room.link}
